@@ -21,6 +21,20 @@ import csv
 import json
 from typing import List, Tuple
 
+# ── OCR Correction (OCRfixr) ──────────────────────────────────────────────────
+# Set to False to skip correction (useful for speed comparison runs).
+APPLY_OCR_CORRECTION = True
+
+if APPLY_OCR_CORRECTION:
+    try:
+        from ocrfixr import spellcheck as _ocr_spellcheck
+        print("[OCRfixr] Correction enabled — BERT model loading...")
+    except ImportError:
+        print("[OCRfixr] Package not found. Run: pip install OCRfixr")
+        print("[OCRfixr] Correction disabled for this run.")
+        APPLY_OCR_CORRECTION = False
+# ─────────────────────────────────────────────────────────────────────────────
+
 from keyboard_detector import ImprovedKeyboardDetector
 
 # ── Configuration (edit these) ─────────────────────────────────────────────────
@@ -99,6 +113,37 @@ def to_text(items: list) -> str:
     return "\n".join(item['text'].strip() for item in items if item['text'].strip())
 
 
+def deduplicate_lines(text: str) -> str:
+    """Remove consecutive exact-duplicate lines.
+
+    Prevents wasting BERT calls on screenshots with hundreds of repeated
+    identical lines (e.g. a TikTok scroll of the same caption).
+    """
+    lines = text.split('\n')
+    result = []
+    prev = None
+    for line in lines:
+        stripped = line.strip()
+        if stripped != prev:
+            result.append(line)
+            prev = stripped
+    return '\n'.join(result)
+
+
+def correct_text(text: str) -> str:
+    """Apply contextual OCR correction via OCRfixr (BERT + SymSpell).
+
+    OCRfixr only changes a word when both the spell-check candidate and
+    the BERT masked-LM context agree, so it is conservative and will not
+    alter proper nouns, usernames, or social-media slang.
+    """
+    if not text.strip():
+        return text
+    if not APPLY_OCR_CORRECTION:
+        return text
+    return _ocr_spellcheck(text).fix()
+
+
 # ── Main pipeline ─────────────────────────────────────────────────────────────
 
 def process_json(data: dict) -> dict:
@@ -117,11 +162,12 @@ def process_json(data: dict) -> dict:
     height = infer_height(confident) if confident else 1000
 
     # Unfiltered text (everything above confidence threshold)
-    unfiltered_text = to_text(confident)
+    # correct_text() deduplicates first, then applies contextual OCR correction.
+    unfiltered_text = correct_text(to_text(confident))
 
     # Status bar: top STATUS_BAR_RATIO of the image
     sb_items, body_items = split_by_y(confident, height * STATUS_BAR_RATIO)
-    status_bar_text = to_text(sb_items)
+    status_bar_text = to_text(sb_items)  # not corrected — discarded downstream
 
     # Keyboard detection on body
     kb_regions = detector.detect_keyboard_regions(body_items, height)
@@ -130,8 +176,8 @@ def process_json(data: dict) -> dict:
     else:
         kb_items, content_items = [], body_items
 
-    keyboard_text  = to_text(kb_items)
-    filtered_text  = to_text(content_items)
+    keyboard_text  = to_text(kb_items)           # not corrected — discarded downstream
+    filtered_text  = correct_text(to_text(content_items))
 
     return {
         'filename':       data.get('filename', os.path.basename('')),
