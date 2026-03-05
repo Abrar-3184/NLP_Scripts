@@ -83,9 +83,7 @@ class ImprovedKeyboardDetector:
                 return len(cleaned)
         return 0
 
-    # ------------------------------------------------------------------
     # Row discovery
-    # ------------------------------------------------------------------
 
     def _cluster_by_y(self, items: List[Dict], threshold: int) -> List[List[Dict]]:
         """Group items into horizontal rows by proximity of their Y-centers."""
@@ -151,9 +149,7 @@ class ImprovedKeyboardDetector:
             })
         return rows
 
-    # ------------------------------------------------------------------
     # Strong-UI-row check
-    # ------------------------------------------------------------------
 
     def _is_strong_ui_row(self, row: Dict) -> bool:
         """True if the row contains combinations that strongly imply a keyboard."""
@@ -169,9 +165,7 @@ class ImprovedKeyboardDetector:
             (has_space   and has_numbers)
         )
 
-    # ------------------------------------------------------------------
     # Region detection (main public API)
-    # ------------------------------------------------------------------
 
     def detect_keyboard_regions(self, ocr_data: List[dict], image_height: int) -> List[Tuple[float, float]]:
         """

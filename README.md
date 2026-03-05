@@ -6,7 +6,7 @@
 | Script | Run command | What it does |
 |---|---|---|
 | `1_run_ocr.py` | `python 1_run_ocr.py` | Runs EasyOCR on images and saves one JSON per image to `OCR_data/` |
-| `2_filter_and_export.py` | `python 2_filter_and_export.py` | Reads JSONs from `OCR_data/`, removes keyboard and status bar text, writes 3 CSVs |
+| `2_filter_and_export.py` | `python 2_filter_and_export.py` | Reads JSONs from `OCR_data/`, removes keyboard and status bar text, applies contextual OCR correction (OCRfixr), writes 3 CSVs |
 | `3_merge_human_labels.py` | `python 3_merge_human_labels.py` | Merges filtered results with human-labeled data into a single CSV |
 | `run_pipeline.py` | `python run_pipeline.py` | Runs all 3 steps in sequence (clears `OCR_data/` first for a fresh run) |
 
@@ -45,6 +45,41 @@ python ocr_pipeline/3_merge_human_labels.py
 | `merged_results.csv` | Screenshot Filename, Unfiltered Text, Filtered Text, Human Labelled |
 
 All output CSVs are saved inside the `ocr_pipeline/` folder.
+
+---
+
+## OCR Correction (Step 2)
+
+Step 2 automatically corrects character-level OCR errors in the assembled text before writing to CSV. This uses **[OCRfixr](https://github.com/maxent-ai/ocrfixr)**, which combines a fast dictionary spell-check (SymSpellPy) with BERT-based contextual verification — so it only changes a word if *both* spell-check and sentence context agree.
+
+### What it fixes
+- Missing apostrophes: `doesnt` → `don't`, `hes` → `he's`, `Im` → `I'm`
+- Common OCR character swaps mapped in its static lookup table
+- Consecutive duplicate lines (e.g. a TikTok scroll) are collapsed first to avoid redundant BERT calls
+
+### What it does NOT change
+- Proper nouns, usernames, hashtags
+- Any word where spell-check and context disagree
+- Status bar text and keyboard text (those are discarded downstream anyway)
+
+### First-run setup
+```
+pip install OCRfixr
+```
+> On the first run, `bert-base-uncased` (~440 MB) is downloaded once to `~/.cache/huggingface/` and reused on every subsequent run.
+
+### Disabling correction (for speed comparison)
+Set the flag at the top of `2_filter_and_export.py`:
+```python
+APPLY_OCR_CORRECTION = False
+```
+When disabled, deduplication still runs (always safe, always fast). BERT never loads.
+
+### Estimated runtime (100 screenshots, CPU)
+| | Time |
+|---|---|
+| Per screenshot (after deduplication) | ~5–20 s |
+| Full 100-screenshot run | ~17–67 min |
 
 ---
 

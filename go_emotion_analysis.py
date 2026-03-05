@@ -7,7 +7,7 @@ import seaborn as sns
 import os
 
 # --- CONFIG ---
-INPUT_FILE = "merged_results.csv"
+INPUT_FILE = "ocr_pipeline/merged_results.csv"
 MODEL_NAME = "cirimus/modernbert-base-go-emotions"
 BATCH_SIZE = 16  # Processes 16 rows at a time (perfect for GPU)
 
