@@ -7,13 +7,13 @@ import seaborn as sns
 import os
 
 # --- CONFIG ---
-INPUT_FILE = "All_Screenshots_Filtered_Unfiltered_Human.csv"
+INPUT_FILE = "merged_results.csv"
 MODEL_NAME = "cirimus/modernbert-base-go-emotions"
 BATCH_SIZE = 16  # Processes 16 rows at a time (perfect for GPU)
 
 TEXT_COLUMNS = {
-    "Unfiltered": "Unfiltered PaddleOCR Result",
-    "Filtered": "Filtered PaddleOCR Result",
+    "Unfiltered": "Unfiltered Text",
+    "Filtered": "Filtered Text",
     "Human": "Human Labelled"
 }
 
